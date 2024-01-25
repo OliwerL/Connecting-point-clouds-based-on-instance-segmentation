@@ -11,10 +11,10 @@ def predict(image_path, output_path):
     project = rf.workspace().project("segm.-instancyjna-ksd-2024")
     model = project.version("1").model
 
-    # prediction_json = model.predict(image_path, confidence=40).json()
-    # print(prediction_json)
-    # with open('prediction.json', 'w') as json_file:
-    #     json.dump(prediction_json, json_file, indent=4)
+    prediction_json = model.predict(image_path, confidence=40).json()
+    #print(prediction_json)
+    with open('prediction.json', 'w') as json_file:
+        json.dump(prediction_json, json_file, indent=4)
 
     model.predict(image_path, confidence=40).save(output_path)
 
@@ -66,6 +66,43 @@ def extract(path_bag):
     pipeline.stop()
 
     return color_frame, depth_frame
+
+
+def printing_predictions(prediction_json_path):
+    with open(prediction_json_path, 'r') as file:
+        data = json.load(file)
+
+    predictions = data['predictions']
+
+    # create dic for classes and depth values
+    predicted_objects = {}
+
+    # Iterate over each bounding box to segment the point cloud and find the point with the lowest depth
+    for box in predictions:
+        # Calculate bounding box corners in the depth image space
+        min_x, min_y = int(box['x']), int(box['y'])
+        max_x, max_y = int(box['x'] + box['width']), int(box['y'] + box['height'])
+
+        # Segment points within the bounding box
+        segmented_points_indices = np.where(
+            (x_values >= min_x) & (x_values <= max_x) &
+            (y_values >= min_y) & (y_values <= max_y)
+        )[0]
+
+        if len(segmented_points_indices) == 0:
+            continue  # Skip if no points are found within the bounding box
+
+        # Find the point with the lowest depth within this segment
+        lowest_depth_point_index = segmented_points_indices[np.argmin(z_values[segmented_points_indices])]
+
+        predicted_objects[box['class']] = z_values[lowest_depth_point_index]
+
+    # segregate objects by depth ascending
+    sorted_predicted_objects = sorted(predicted_objects.items(), key=lambda x: x[1])
+
+    print("Detected objects in ascending order of depth:")
+    for obj in sorted_predicted_objects:
+        print(obj)
 
 
 path_to_predict = 'objects.jpg'
@@ -128,6 +165,9 @@ colors = colors[valid_points]  # Only keep colors for valid points
 pcd = o3d.geometry.PointCloud()
 pcd.points = o3d.utility.Vector3dVector(np.vstack((x_values, y_values, z_values)).T)
 pcd.colors = o3d.utility.Vector3dVector(colors / 255.0)  # Normalize colors
+
+prediction_json_path = 'prediction.json'
+printing_predictions(prediction_json_path)
 
 # Visualize the point cloud with editing features
 # This allows for axes visualization and easy rotation of the model
