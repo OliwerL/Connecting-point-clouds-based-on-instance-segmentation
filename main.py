@@ -79,9 +79,12 @@ def printing_predictions(prediction_json_path):
 
     # Iterate over each bounding box to segment the point cloud and find the point with the lowest depth
     for box in predictions:
-        # Calculate bounding box corners in the depth image space
-        min_x, min_y = int(box['x']), int(box['y'])
-        max_x, max_y = int(box['x'] + box['width']), int(box['y'] + box['height'])
+        # Calculate bounding box corners in the depth image space from the center
+        center_x, center_y = int(box['x']), int(box['y'])
+        half_width, half_height = int(box['width'] / 2), int(box['height'] / 2)
+
+        min_x, min_y = center_x - half_width, center_y - half_height
+        max_x, max_y = center_x + half_width, center_y + half_height
 
         # Segment points within the bounding box
         segmented_points_indices = np.where(
@@ -95,14 +98,14 @@ def printing_predictions(prediction_json_path):
         # Find the point with the lowest depth within this segment
         lowest_depth_point_index = segmented_points_indices[np.argmin(z_values[segmented_points_indices])]
 
-        predicted_objects[box['class']] = z_values[lowest_depth_point_index]
+        predicted_objects[box['class']] = [z_values[lowest_depth_point_index], box['x'], box['y']]
 
     # segregate objects by depth ascending
-    sorted_predicted_objects = sorted(predicted_objects.items(), key=lambda x: x[1])
+    sorted_predicted_objects = sorted(predicted_objects.items(), key=lambda x: x[1][0])
 
     print("Detected objects in ascending order of depth:")
     for obj in sorted_predicted_objects:
-        print(obj)
+        print(f'Object: {obj[0]}, centre x: {obj[1][1]}, centre y: {obj[1][2]}')
 
 
 path_to_predict = 'objects.jpg'
