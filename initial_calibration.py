@@ -11,7 +11,7 @@ config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
 
 # Start przesyłania danych
 pipeline.start(config)
-
+n = 0
 try:
     while True:
         # Czekaj na klatkę
@@ -41,7 +41,8 @@ try:
         img_undistorted = cv2.undistort(img, camera_matrix, dist_coeffs)
 
         # Wyświetlanie obrazu
-        cv2.imshow('Undistorted Image', img_undistorted)
+        cv2.imwrite(f'Undistorted Image', img_undistorted)
+        n += 1
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
