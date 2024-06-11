@@ -12,7 +12,6 @@ def predict(image_path, output_path):
     model = project.version("1").model
 
     prediction_json = model.predict(image_path, confidence=40).json()
-    #print(prediction_json)
     with open('prediction.json', 'w') as json_file:
         json.dump(prediction_json, json_file, indent=4)
 
@@ -20,7 +19,6 @@ def predict(image_path, output_path):
 
 def create_mask(predicted_image):
     prediction_image = cv2.imread(predicted_image)
-
     hsv = cv2.cvtColor(prediction_image, cv2.COLOR_BGR2HSV)
 
     # Define the range of blue color in HSV
@@ -67,7 +65,6 @@ def extract(path_bag):
 
     return color_frame, depth_frame
 
-
 def printing_predictions(prediction_json_path):
     with open(prediction_json_path, 'r') as file:
         data = json.load(file)
@@ -110,7 +107,7 @@ def printing_predictions(prediction_json_path):
 
 path_to_predict = 'objects.jpg'
 path_predicted = 'prediction.jpg'
-path_bag = '222.bag'
+path_bag = 'prawa1BAG.bag'
 
 color_frame, depth_frame = extract(path_bag)
 
@@ -150,7 +147,7 @@ else:
 xv, yv = np.meshgrid(range(depth_width), range(depth_height), indexing='xy')
 
 depth_threshold = 100
-depth_threshold2 = 1550
+depth_threshold2 = 5501
 mask_filled_flat = mask_filled.flatten()
 
 # Flatten the arrays for plotting
@@ -169,6 +166,10 @@ pcd = o3d.geometry.PointCloud()
 pcd.points = o3d.utility.Vector3dVector(np.vstack((x_values, y_values, z_values)).T)
 pcd.colors = o3d.utility.Vector3dVector(colors / 255.0)  # Normalize colors
 
+# Save the point cloud to a PLY file
+o3d.io.write_point_cloud('depth1_cloud.ply', pcd)
+
+# Optional: Print predictions
 prediction_json_path = 'prediction.json'
 printing_predictions(prediction_json_path)
 
