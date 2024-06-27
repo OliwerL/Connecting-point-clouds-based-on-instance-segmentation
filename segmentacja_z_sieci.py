@@ -5,7 +5,6 @@ from roboflow import Roboflow
 import pyrealsense2 as rs
 import open3d as o3d
 
-
 def predict(image_path, output_path):
     rf = Roboflow(api_key="Uc02DXLsqvZNgCT7wkWy")
     project = rf.workspace().project("segm.-instancyjna-ksd-2024")
@@ -65,7 +64,7 @@ def extract(path_bag):
 
     return color_frame, depth_frame
 
-def printing_predictions(prediction_json_path):
+def printing_predictions(prediction_json_path, x_values, y_values, z_values):
     with open(prediction_json_path, 'r') as file:
         data = json.load(file)
 
@@ -107,7 +106,7 @@ def printing_predictions(prediction_json_path):
 
 path_to_predict = 'objects.jpg'
 path_predicted = 'prediction.jpg'
-path_bag = 'prawa1BAG.bag'
+path_bag = 'glowna_oba_BAG.bag'
 
 color_frame, depth_frame = extract(path_bag)
 
@@ -117,61 +116,36 @@ cv2.imwrite(path_to_predict, color_image)
 predict(path_to_predict, path_predicted)
 mask_filled = create_mask(path_predicted)
 
+# Get the intrinsics of the depth camera
+depth_intrinsics = depth_frame.profile.as_video_stream_profile().intrinsics
 
-masked_depth = np.where(mask_filled != 0, depth_image, np.nan)
-depth_colormap = cv2.applyColorMap(cv2.convertScaleAbs(depth_image, alpha=0.1), cv2.COLORMAP_JET)
-depth_width = depth_frame.get_width()
-depth_height = depth_frame.get_height()
-# Create a meshgrid using the extracted width and height
+# Create Open3D point cloud from RealSense depth and color frames
+points = []
+colors = []
 
-normalized_depth = (depth_image - np.min(depth_image)) / (np.max(depth_image) - np.min(depth_image))
-min_depth = np.nanmin(masked_depth)
-max_depth = np.nanmax(masked_depth)
-normalized_masked_depth = (masked_depth - min_depth) / (max_depth - min_depth)
-normalized_masked_depth = np.nan_to_num(normalized_masked_depth, nan=0)
+for v in range(depth_intrinsics.height):
+    for u in range(depth_intrinsics.width):
+        z = depth_image[v, u] * depth_frame.get_units()
+        if mask_filled[v, u] > 0 and z > 0:
+            x = (u - depth_intrinsics.ppx) / depth_intrinsics.fx * z
+            y = (v - depth_intrinsics.ppy) / depth_intrinsics.fy * z
+            points.append([x, y, z])
+            colors.append(color_image[v, u] / 255.0)
 
-# Convert to 8-bit format
-normalized_masked_depth_8bit = (normalized_masked_depth * 255).astype(np.uint8)
-
-# Apply colormap
-colored_masked_depth = cv2.applyColorMap(normalized_masked_depth_8bit, cv2.COLORMAP_JET)
-
-# Resize color image to match depth image's resolution if they are different
-color_height, color_width = depth_colormap.shape[:2]
-if (color_width, color_height) != (depth_width, depth_height):
-    resized_color_image = cv2.resize(depth_colormap, (depth_width, depth_height), interpolation=cv2.INTER_AREA)
-else:
-    resized_color_image = depth_colormap
-
-# # Prepare for 3D scatter plot
-xv, yv = np.meshgrid(range(depth_width), range(depth_height), indexing='xy')
-
-depth_threshold = 100
-depth_threshold2 = 5501
-mask_filled_flat = mask_filled.flatten()
-
-# Flatten the arrays for plotting
-x_values, y_values, z_values = xv.flatten(), yv.flatten(), masked_depth.flatten()
-
-# Identify valid points where z_values are not NaN, corresponding mask_filled values are zero, and depth is below the threshold
-valid_points = (~np.isnan(z_values)) & (z_values > depth_threshold) & (z_values < depth_threshold2)
-x_values, y_values, z_values = x_values[valid_points], y_values[valid_points], z_values[valid_points]
-
-# Filter the color data
-colors = resized_color_image.reshape(-1, 3)
-colors = colors[valid_points]  # Only keep colors for valid points
-
-# Create Open3D point cloud with only valid points
 pcd = o3d.geometry.PointCloud()
-pcd.points = o3d.utility.Vector3dVector(np.vstack((x_values, y_values, z_values)).T)
-pcd.colors = o3d.utility.Vector3dVector(colors / 255.0)  # Normalize colors
+pcd.points = o3d.utility.Vector3dVector(points)
+pcd.colors = o3d.utility.Vector3dVector(colors)
 
 # Save the point cloud to a PLY file
-o3d.io.write_point_cloud('depth1_cloud.ply', pcd)
+o3d.io.write_point_cloud('filtered_cloud_obaglowne.ply', pcd)
+
+# Prepare data for printing_predictions
+points = np.array(points)
+x_values, y_values, z_values = points[:, 0], points[:, 1], points[:, 2]
 
 # Optional: Print predictions
 prediction_json_path = 'prediction.json'
-printing_predictions(prediction_json_path)
+printing_predictions(prediction_json_path, x_values, y_values, z_values)
 
 # Visualize the point cloud with editing features
 # This allows for axes visualization and easy rotation of the model

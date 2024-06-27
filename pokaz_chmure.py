@@ -16,6 +16,6 @@ def visualize_point_cloud(ply_file):
 if __name__ == "__main__":
     # Ścieżka do pliku PLY
     # ply_file = 'prawyPLY.ply'
-    ply_file = 'glowna_karton_PLY.ply'
+    ply_file = 'lewa_karton_PLY.ply'
     # Wizualizacja chmury punktów
     visualize_point_cloud(ply_file)
