@@ -34,9 +34,9 @@ R2 = calibration_data2['R']
 T2 = calibration_data2['T']
 
 # Load point clouds
-cloud1 = load_point_cloud('glowna_karton_PLY.ply')
-cloud2 = load_point_cloud('prawa_karton_PLY.ply')
-cloud3 = load_point_cloud('lewa_karton_PLY.ply')
+cloud1 = load_point_cloud('filtered_cloud2.ply')
+cloud2 = load_point_cloud('filtered_cloud4.ply')
+cloud3 = load_point_cloud('filtered_cloud.ply')
 
 # Apply transformation to the second point cloud
 cloud2_transformed = apply_transformation(cloud2, R1, T1)
